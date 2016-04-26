@@ -7,7 +7,6 @@ volatile int thresh = 525;                // used to find instant moment of hear
 volatile int amp = 100;                   // used to hold amplitude of pulse waveform, seeded
 volatile boolean firstBeat = true;        // used to seed rate array so we startup with reasonable BPM
 volatile boolean secondBeat = false;      // used to seed rate array so we startup with reasonable BPM
-volatile int lastEncoded = 0;
 
 
 void interruptSetup(){     
@@ -18,52 +17,13 @@ void interruptSetup(){
   TIMSK2 = 0x02;     // ENABLE INTERRUPT ON MATCH BETWEEN TIMER2 AND OCR2A
   sei();             // MAKE SURE GLOBAL INTERRUPTS ARE ENABLED      
 
-
-  pinMode(TOGGLE, OUTPUT);
-  attachInterrupt(0, setToggle, RISING);
-  
-  // enable pin change interrupts for the rotary encoder
-  pinMode(NAV1_PIN, INPUT);
-  pinMode(NAV2_PIN, INPUT);
-  
-  digitalWrite(NAV1_PIN, HIGH);
-  digitalWrite(NAV2_PIN, HIGH);
-  
-  enablePinInterupt(NAV1_PIN);
-  enablePinInterupt(NAV2_PIN); 
-  
 } 
-
-void enablePinInterupt(byte pin) {
-    *digitalPinToPCMSK(pin) |= bit (digitalPinToPCMSKbit(pin));  // enable pin
-    PCIFR  |= bit (digitalPinToPCICRbit(pin)); // clear any outstanding interrupt
-    PCICR  |= bit (digitalPinToPCICRbit(pin)); // enable interrupt for the group
-}
-
-void setToggle() {
-  idleMode = !idleMode;
-}
-
-// handle the encoder interrupts
-ISR (PCINT2_vect) {
-  int MSB = digitalRead(NAV1_PIN); //MSB = most significant bit
-  int LSB = digitalRead(NAV2_PIN); //LSB = least significant bit
-  
-  int encoded = (MSB << 1) |LSB; //converting the 2 pin value to single number
-  int sum  = (lastEncoded << 2) | encoded; //adding it to the previous encoded value
- 
-  if(sum == 0b1101 || sum == 0b0100 || sum == 0b0010 || sum == 0b1011)
-    brightness = constrain(brightness++, 0, 100);
-  if(sum == 0b1110 || sum == 0b0111 || sum == 0b0001 || sum == 0b1000)
-    brightness = constrain(brightness--, 0, 100);
-  
-}
 
 // THIS IS THE TIMER 2 INTERRUPT SERVICE ROUTINE. 
 // Timer 2 makes sure that we take a reading every 2 miliseconds
 ISR(TIMER2_COMPA_vect){                         // triggered when Timer2 counts to 124
   cli();                                      // disable interrupts while we do this
-  Signal = analogRead(pulsePin);              // read the Pulse Sensor 
+  Signal = analogRead(PULSE_PIN);              // read the Pulse Sensor 
   sampleCounter += 2;                         // keep track of the time in mS with this variable
   int N = sampleCounter - lastBeatTime;       // monitor the time since the last beat to avoid noise
 
