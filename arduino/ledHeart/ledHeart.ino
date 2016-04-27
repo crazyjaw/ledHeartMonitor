@@ -27,8 +27,8 @@ const byte  beatPattern[4][LED_COUNT]  = {
   {
      0,0,0,  0,0,0,
    0,0,0,0,0,0,0,0,0,
-   0,0,X,X,0,X,X,0,0,
-   0,0,X,0,X,0,X,0,0,
+   0,0,X,0,0,0,X,0,0,
+   0,0,X,0,0,0,X,0,0,
      0,0,X,0,X,0,0,
        0,0,X,0,0,
          0,0,0,
@@ -108,6 +108,12 @@ volatile int Signal;                // holds the incoming raw data
 volatile int IBI = 600;             // int that holds the time interval between beats! Must be seeded!
 volatile boolean Pulse = false;     // "True" when User's live heartbeat is detected. "False" when not a "live beat".
 volatile boolean QS = true;        // becomes true when Arduoino finds a beat.
+volatile int pulseVal;  
+
+volatile int P =512;                      // used to find peak in pulse wave, seeded
+volatile int T = 512;                     // used to find trough in pulse wave, seeded
+volatile int thresh = 525;                // used to find instant moment of heart beat, seeded
+
 
 
 // Regards Serial OutPut  -- Set This Up to your needs
@@ -115,7 +121,6 @@ static boolean serialVisual = false;   // Set to 'false' by Default.  Re-set to 
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(LED_COUNT, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
 
 void setup() {
-  //pinMode(blinkPin,OUTPUT);         // pin that will blink to your heartbeat!
   Serial.begin(115200);             // we agree to talk fast!
   strip.begin();
   strip.show(); // Initialize all pixels to 'off'
@@ -124,10 +129,8 @@ void setup() {
   digitalWrite(TOGGLE, HIGH);
 
   interruptSetup();                 // sets up to read Pulse Sensor signal every 2mS
-  // IF YOU ARE POWERING The Pulse Sensor AT VOLTAGE LESS THAN THE BOARD VOLTAGE,
-  // UN-COMMENT THE NEXT LINE AND APPLY THAT VOLTAGE TO THE A-REF PIN
-  //   analogReference(EXTERNAL);
 }
+
 
 void loop() {
   getSettings();
@@ -138,14 +141,14 @@ void loop() {
     if (QS == true) {    // A Heartbeat Was Found
       // BPM and IBI have been Determined
       // Quantified Self "QS" true when arduino finds a heartbeat
-      serialOutputWhenBeatHappens();   // A Beat Happened, Output that to serial.
+     // serialOutputWhenBeatHappens();   // A Beat Happened, Output that to serial.
       QS = false;                      // reset the Quantified Self flag for next time
       heartBeat();
     }
 
     // resting pattern;
     for ( uint8_t ledIndex = 0; ledIndex < LED_COUNT; ledIndex++) {
-      if (((beatPattern[1][ledIndex]))  == 1) {
+      if (((beatPattern[0][ledIndex]))  == 1) {
         strip.setPixelColor(ledIndex, beat(40) );
       }
     }
@@ -168,32 +171,19 @@ void getSettings() {
     
     if(round(newBrightness * 1.05) > brightness || round(newBrightness * .95) < brightness ){
       brightness = newBrightness;
-     // strip.setBrightness(brightness); // updating the strip disables interrups, so do this as infrequently as possible
+      strip.setBrightness(brightness); // updating the strip disables interrups, so do this as infrequently as possible
     }
   }
   
 }
 
-void heartBeat() {
-  uint8_t beatVal;
-  for (beatVal = 10; beatVal < 64; beatVal++) {
-    setBeatPattern(beatVal);
-    strip.show();
-  }
 
-  for (beatVal = 64; beatVal > 10; beatVal--) {
-    setBeatPattern(beatVal);
-    strip.show();
-  }
-
-}
-
-void setBeatPattern(uint8_t val) {
+void setBeatPattern(uint8_t val){
   uint8_t ledIndex,  frameIndex;
   for (frameIndex = 0; frameIndex < 4; frameIndex++) {
     for (ledIndex = 0; ledIndex < LED_COUNT; ledIndex++) {
       if ( ((beatPattern[frameIndex][ledIndex])) == 1) {
-        strip.setPixelColor(ledIndex, beat(val * (4 - frameIndex)) );
+        strip.setPixelColor(ledIndex, beat((val) * (4 - frameIndex)) );
       }
     }
   }
@@ -223,8 +213,22 @@ void playIdlePattern() {
     strip.show();
     delay(5);
   }
-
 }
+
+  void heartBeat() {
+    uint8_t beatVal;
+    for (beatVal = 10; beatVal < 64; beatVal++) {
+      setBeatPattern(beatVal);
+      strip.show();
+    }
+   
+    for (beatVal = 64; beatVal > 10; beatVal--) {
+      setBeatPattern(beatVal);
+      strip.show();
+    }
+  
+  }
+
 
 uint32_t beat(byte beatIntensity) {
   if (beatIntensity < 40) {

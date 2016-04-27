@@ -1,9 +1,7 @@
 volatile int rate[10];                    // array to hold last ten IBI values
 volatile unsigned long sampleCounter = 0;          // used to determine pulse timing
 volatile unsigned long lastBeatTime = 0;           // used to find IBI
-volatile int P =512;                      // used to find peak in pulse wave, seeded
-volatile int T = 512;                     // used to find trough in pulse wave, seeded
-volatile int thresh = 525;                // used to find instant moment of heart beat, seeded
+
 volatile int amp = 100;                   // used to hold amplitude of pulse waveform, seeded
 volatile boolean firstBeat = true;        // used to seed rate array so we startup with reasonable BPM
 volatile boolean secondBeat = false;      // used to seed rate array so we startup with reasonable BPM
@@ -26,26 +24,32 @@ ISR(TIMER2_COMPA_vect){                         // triggered when Timer2 counts 
   Signal = analogRead(PULSE_PIN);              // read the Pulse Sensor 
   sampleCounter += 2;                         // keep track of the time in mS with this variable
   int N = sampleCounter - lastBeatTime;       // monitor the time since the last beat to avoid noise
-
+  
+  pulseVal = round(((Signal - T) / (P - T) ) * 100);
     //  find the peak and trough of the pulse wave
   if(Signal < thresh && N > (IBI/5)*3){       // avoid dichrotic noise by waiting 3/5 of last IBI
     if (Signal < T){                        // T is the trough
       T = Signal;                         // keep track of lowest point in pulse wave 
+      pulseVal = 0;
     }
   }
 
   if(Signal > thresh && Signal > P){          // thresh condition helps avoid noise
     P = Signal;                             // P is the peak
+    pulseVal = 100;
   }                                        // keep track of highest point in pulse wave
 
   //  NOW IT'S TIME TO LOOK FOR THE HEART BEAT
   // signal surges up in value every time there is a pulse
   if (N > 250){                                   // avoid high frequency noise
+      pulseVal = round(((Signal - T) / (P - T) ) * 100);
+      
     if ( (Signal > thresh) && (Pulse == false) && (N > (IBI/5)*3) ){        
       Pulse = true;                               // set the Pulse flag when we think there is a pulse
       IBI = sampleCounter - lastBeatTime;         // measure time between beats in mS
       lastBeatTime = sampleCounter;               // keep track of time for next pulse
-
+   
+      
       if(secondBeat){                        // if this is the second beat, if secondBeat == TRUE
         secondBeat = false;                  // clear secondBeat flag
         for(int i=0; i<=9; i++){             // seed the running total to get a realisitic BPM at startup
